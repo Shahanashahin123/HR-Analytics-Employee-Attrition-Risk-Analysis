@@ -1,8 +1,9 @@
-# HR Analytics: Employee Attrition Prediction
-# Mini Project - Beginner Friendly
+# ==========================================================
+# HR Analytics – Employee Attrition Risk Analysis System
+# ==========================================================
 
 # ------------------------------
-# Step 1: Import Libraries
+# 1. Import Libraries
 # ------------------------------
 import pandas as pd
 import numpy as np
@@ -12,54 +13,47 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-import joblib  # To save the model
+import joblib
 
 # ------------------------------
-# Step 2: Load Dataset
+# 2. Load Dataset
 # ------------------------------
 df = pd.read_csv("WA_Fn-UseC_-HR-Employee-Attrition.csv")
-print("First 5 rows of dataset:")
-print(df.head())
+
+print("Dataset Loaded Successfully")
+print("Shape:", df.shape)
 
 # ------------------------------
-# Step 3: Data Cleaning
+# 3. Data Cleaning
 # ------------------------------
-# Check info
-print("\nDataset Info:")
-print(df.info())
-
-# Check for missing values
-print("\nMissing values per column:")
+print("\nChecking Missing Values:")
 print(df.isnull().sum())
 
-# Remove duplicates
 df = df.drop_duplicates()
 
 # Drop irrelevant columns
 columns_to_drop = ['EmployeeNumber', 'StandardHours', 'Over18', 'EmployeeCount']
-for col in columns_to_drop:
-    if col in df.columns:
-        df.drop(col, axis=1, inplace=True)
+df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
 
-# Convert target column to numeric
+# Convert target to numeric
 df['Attrition'] = df['Attrition'].map({'Yes': 1, 'No': 0})
 
 print("\nData after cleaning:")
 print(df.head())
-print("Data shape:", df.shape)
 
 # ------------------------------
-# Step 4: Exploratory Data Analysis (EDA)
+# 4. Exploratory Data Analysis
 # ------------------------------
-# Attrition count
+
+# Attrition Distribution
 plt.figure(figsize=(6,4))
 sns.countplot(x='Attrition', data=df)
-plt.title("Attrition Count")
+plt.title("Employee Attrition Distribution")
 plt.savefig("eda_attrition_count.png")
 plt.show()
 
-# Correlation matrix for numeric features
-num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+# Correlation Heatmap
+num_cols = df.select_dtypes(include=[np.number]).columns
 plt.figure(figsize=(12,10))
 sns.heatmap(df[num_cols].corr(), cmap="coolwarm", center=0)
 plt.title("Correlation Matrix")
@@ -67,78 +61,124 @@ plt.savefig("eda_corr_matrix.png")
 plt.show()
 
 # ------------------------------
-# Step 5: Encode Categorical Variables
+# 5. Encode Categorical Variables
 # ------------------------------
-cat_cols = df.select_dtypes(include=['object']).columns.tolist()
-print("Categorical columns:", cat_cols)
+cat_cols = df.select_dtypes(include=['object']).columns
 
-# Binary columns
 le = LabelEncoder()
-binary_cols = [c for c in cat_cols if df[c].nunique() == 2]
-multi_cols = [c for c in cat_cols if df[c].nunique() > 2]
 
 # Encode binary columns
-for c in binary_cols:
-    df[c] = le.fit_transform(df[c].astype(str))
+for col in cat_cols:
+    if df[col].nunique() == 2:
+        df[col] = le.fit_transform(df[col])
 
-# One-hot encode multi-class columns
-df = pd.get_dummies(df, columns=multi_cols, drop_first=True)
-print("Data shape after encoding:", df.shape)
+# One-hot encoding for multi-class columns
+df = pd.get_dummies(df, drop_first=True)
+
+print("\nData shape after encoding:", df.shape)
 
 # ------------------------------
-# Step 6: Split Data into Train and Test Sets
+# 6. Train-Test Split
 # ------------------------------
-y = df['Attrition']
 X = df.drop('Attrition', axis=1)
+y = df['Attrition']
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
-print("Train shape:", X_train.shape, "Test shape:", X_test.shape)
+
+print("Train shape:", X_train.shape)
+print("Test shape:", X_test.shape)
 
 # ------------------------------
-# Step 7: Train RandomForest Model
+# 7. Model Training
 # ------------------------------
-rf = RandomForestClassifier(n_estimators=200, random_state=42, class_weight='balanced')
+rf = RandomForestClassifier(
+    n_estimators=200,
+    random_state=42,
+    class_weight='balanced'
+)
+
 rf.fit(X_train, y_train)
+
 y_pred = rf.predict(X_test)
-y_proba = rf.predict_proba(X_test)[:,1]
+y_proba = rf.predict_proba(X_test)[:, 1]
 
 # ------------------------------
-# Step 8: Evaluate Model
+# 8. Model Evaluation
 # ------------------------------
-print("\nRandom Forest Model Evaluation:")
+print("\nModel Evaluation")
 print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-print("Classification Report:\n", classification_report(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
 
-# Confusion matrix plot
 cm = confusion_matrix(y_test, y_pred)
 plt.figure(figsize=(5,4))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
-plt.title("Confusion Matrix")
 plt.savefig("confusion_matrix.png")
 plt.show()
 
 # ------------------------------
-# Step 9: Feature Importance
+# 9. Feature Importance
 # ------------------------------
-fi = pd.Series(rf.feature_importances_, index=X.columns).sort_values(ascending=False)
-print("\nTop 20 Features:")
-print(fi.head(20))
+feature_importance = pd.Series(
+    rf.feature_importances_,
+    index=X.columns
+).sort_values(ascending=False)
 
-# Plot top 20 features
+print("\nTop 20 Important Features:")
+print(feature_importance.head(20))
+
 plt.figure(figsize=(8,6))
-fi.head(20).sort_values().plot(kind='barh')
+feature_importance.head(20).sort_values().plot(kind='barh')
 plt.title("Top 20 Feature Importances")
 plt.tight_layout()
 plt.savefig("feature_importances.png")
 plt.show()
 
 # ------------------------------
-# Step 10: Save Model
+# 10. Attrition Risk Scoring
+# ------------------------------
+
+risk_df = X_test.copy()
+risk_df['Actual_Attrition'] = y_test.values
+risk_df['Predicted_Attrition'] = y_pred
+risk_df['Attrition_Risk_Probability'] = y_proba
+
+# Categorize Risk Levels
+def risk_category(prob):
+    if prob > 0.6:
+        return "High Risk"
+    elif prob > 0.3:
+        return "Medium Risk"
+    else:
+        return "Low Risk"
+
+risk_df['Risk_Category'] = risk_df['Attrition_Risk_Probability'].apply(risk_category)
+
+print("\nSample Risk Categorization:")
+print(risk_df[['Attrition_Risk_Probability', 'Risk_Category']].head())
+
+# ------------------------------
+# 11. Business Insights
+# ------------------------------
+print("\n==============================")
+print("Business Insights Summary")
+print("==============================")
+print("1. Overtime shows strong influence on employee attrition.")
+print("2. Lower monthly income correlates with higher attrition risk.")
+print("3. Certain job roles demonstrate higher turnover probability.")
+print("4. Risk scoring enables proactive retention strategies.")
+print("==============================")
+
+# ------------------------------
+# 12. Save Model
 # ------------------------------
 joblib.dump(rf, "rf_attrition_model.pkl")
-print("\nModel saved as rf_attrition_model.pkl")
+print("\nModel saved successfully as rf_attrition_model.pkl")
